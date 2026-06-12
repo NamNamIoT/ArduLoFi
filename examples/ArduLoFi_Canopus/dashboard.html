@@ -1,0 +1,1886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CANOPUS | Control Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            --font-family: 'Outfit', 'Inter', sans-serif;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at top left, #1e293b, #0f172a);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Top Header / Banner */
+        .header-banner {
+            position: relative;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1.25rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .banner-text h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            background: linear-gradient(to right, #fff, var(--accent-blue));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.2rem;
+        }
+
+        .banner-text p {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .header-right-group {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .connection-mode-badge {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-color);
+            padding: 0.35rem 0.75rem;
+            border-radius: 99px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+            color: var(--accent-blue);
+        }
+
+        .system-status {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 0.35rem 0.75rem;
+            border-radius: 99px;
+            border: 1px solid var(--accent-emerald);
+            color: var(--accent-emerald);
+            font-size: 0.7rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-emerald);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-emerald);
+            animation: pulse-glow 2s infinite;
+        }
+
+        .status-dot.offline {
+            background: var(--accent-rose);
+            border-color: var(--accent-rose);
+            box-shadow: 0 0 8px var(--accent-rose);
+        }
+
+        /* Layout */
+        .main-layout {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 1rem;
+            padding: 1rem;
+            max-width: 1600px;
+            width: 100%;
+            margin: 0 auto;
+            z-index: 2;
+        }
+
+        @media (max-width: 1024px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            min-height: 0;
+        }
+
+        /* Glassmorphism Card */
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+            padding: 1.25rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 10px 25px rgba(56, 189, 248, 0.08);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .card-header h2 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-header h2 .icon {
+            font-size: 1.15rem;
+        }
+
+        .badge-live {
+            padding: 0.2rem 0.5rem;
+            border-radius: 99px;
+            font-size: 0.65rem;
+            font-weight: 800;
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--accent-emerald);
+            animation: blink 2s infinite;
+        }
+
+        /* Stats Summary Bar */
+        .stats-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .stat-item {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 0.6rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        .stat-item:hover {
+            transform: scale(1.02);
+            border-color: rgba(255,255,255,0.2);
+        }
+
+        .stat-label {
+            font-size: 0.6rem;
+            color: var(--text-secondary);
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 1.4rem;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .stat-item.total { border-left: 3px solid var(--accent-blue); }
+        .stat-item.online { border-left: 3px solid var(--accent-emerald); color: var(--accent-emerald); }
+        .stat-item.offline { border-left: 3px solid var(--accent-rose); color: var(--accent-rose); }
+
+        /* Gateway Monitor Panel */
+        .gateway-monitor-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+            background: rgba(15, 23, 42, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        @media (max-width: 768px) {
+            .gateway-monitor-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .gw-section {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .gw-label {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .gw-value {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .gw-value.accent { color: var(--accent-blue); }
+        .gw-value.mono { font-family: 'JetBrains Mono', monospace; color: var(--accent-amber); }
+
+        /* Local Telemetry Sub-grid */
+        .gateway-sensors-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 0.5rem;
+        }
+
+        .gw-sensor-widget {
+            background: rgba(15, 23, 42, 0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .gw-sensor-lbl {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .gw-sensor-val {
+            font-size: 0.85rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+        }
+
+        /* Weather Station Simulator Styles */
+        .weather-content {
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            gap: 1.5rem;
+            align-items: center;
+            margin-top: 0.5rem;
+        }
+
+        @media (max-width: 640px) {
+            .weather-content {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+        }
+
+        .weather-svg {
+            width: 100%;
+            height: auto;
+            background: rgba(15, 23, 42, 0.4);
+            border-radius: 0.75rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .weather-metrics {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .metric-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .metric-row .m-label {
+            width: 110px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.65rem;
+            letter-spacing: 0.5px;
+        }
+
+        .m-bar-container {
+            flex: 1;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 99px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        .m-bar {
+            height: 100%;
+            border-radius: 99px;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .wind-bar { background: linear-gradient(to right, var(--accent-blue), #60a5fa); }
+        .rain-bar { background: linear-gradient(to right, #818cf8, var(--accent-rose)); }
+        .solar-bar { background: linear-gradient(to right, var(--accent-amber), #fb923c); }
+
+        .metric-row .m-value {
+            width: 85px;
+            text-align: right;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+        }
+
+        .metric-row2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 0.25rem;
+            border-top: 1px dashed var(--border-color);
+            padding-top: 0.5rem;
+        }
+
+        .sub-metric {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .sub-metric .m-label {
+            font-size: 0.6rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sub-metric .m-value2 {
+            font-size: 1.1rem;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* SVG animations */
+        @keyframes rotate-rays {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .sun-rays {
+            animation: rotate-rays 35s linear infinite;
+        }
+
+        @keyframes pulse-sun {
+            0%, 100% { transform: scale(1); opacity: 0.2; }
+            50% { transform: scale(1.15); opacity: 0.45; }
+        }
+        .sun-glow {
+            animation: pulse-sun 4s ease-in-out infinite;
+        }
+
+        @keyframes rain-fall {
+            0% { transform: translate(0, 0); opacity: 0; }
+            30% { opacity: 1; }
+            100% { transform: translate(-3px, 15px); opacity: 0; }
+        }
+        .rain-drop {
+            animation: rain-fall 1.2s linear infinite;
+        }
+        .drop-1 { animation-delay: 0s; }
+        .drop-2 { animation-delay: 0.4s; }
+        .drop-3 { animation-delay: 0.8s; }
+
+        @keyframes spin-cups {
+            100% { transform: rotate(360deg); }
+        }
+        .spinning-cups {
+            animation: spin-cups var(--cup-spin-dur, 3s) linear infinite;
+        }
+
+        /* Node Grid */
+        .node-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 0.6rem;
+            overflow-y: auto;
+            max-height: 450px;
+            padding-right: 4px;
+        }
+
+        /* Node Card Layout */
+        .node-card {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 0.75rem 0.85rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.15s, border-color 0.15s;
+            cursor: pointer;
+        }
+
+        .node-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent-blue);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+        }
+
+        .node-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 3px;
+            background: var(--accent-blue);
+        }
+
+        .node-card.stale::before { background: var(--accent-amber); }
+        .node-card.offline::before { background: var(--accent-rose); }
+        .node-card.active-card {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+            background: rgba(30, 41, 59, 0.9);
+        }
+
+        .node-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 0.3rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .node-title-row {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .node-card h3 {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .node-type-badge {
+            display: inline-block;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 0.55rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            width: fit-content;
+        }
+
+        .badge-agri { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+        .badge-raw { background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3); }
+
+        .signal-indicator {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .signal-bar {
+            width: 3px;
+            height: 9px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 1px;
+        }
+
+        .signal-bar.active {
+            background: var(--accent-emerald);
+        }
+
+        .node-info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .node-info-label {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .node-info-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .text-amber { color: var(--accent-amber); }
+        .text-sky { color: var(--accent-blue); }
+
+        .node-rf-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            border-top: 1px dashed rgba(255, 255, 255, 0.05);
+            padding-top: 0.25rem;
+            margin-top: 0.15rem;
+        }
+
+        .node-actions {
+            display: flex;
+            gap: 0.4rem;
+            margin-top: 0.3rem;
+            z-index: 5;
+        }
+
+        /* Floating Bubble / Sidebar Tabs Panel */
+        .bubble-tabs {
+            display: flex;
+            gap: 0.25rem;
+            background: rgba(15, 23, 42, 0.5);
+            padding: 0.25rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+            margin-bottom: 0.75rem;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.45rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 0.35rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: var(--accent-blue);
+            color: var(--bg-color);
+            box-shadow: 0 2px 8px rgba(56, 189, 248, 0.3);
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        /* Form Controls */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        select, input {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            font-size: 0.85rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        select:focus, input:focus {
+            border-color: var(--accent-blue);
+        }
+
+        .btn {
+            background: var(--accent-blue);
+            color: var(--bg-color);
+            border: none;
+            padding: 0.6rem 1rem;
+            border-radius: 0.5rem;
+            font-family: var(--font-family);
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            text-transform: uppercase;
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);
+        }
+
+        .btn:hover {
+            filter: brightness(1.1);
+            box-shadow: 0 4px 18px rgba(56, 189, 248, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            box-shadow: none;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.12);
+            box-shadow: none;
+        }
+
+        .btn-danger {
+            background: var(--accent-rose);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(244, 63, 94, 0.25);
+        }
+
+        .btn-danger:hover {
+            filter: brightness(1.1);
+            box-shadow: 0 4px 18px rgba(244, 63, 94, 0.4);
+        }
+
+        /* Log console */
+        .console-container {
+            background: #020617;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 0.6rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: #38bdf8;
+            height: 140px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
+        }
+
+        .console-line {
+            line-height: 1.4;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+            padding-bottom: 0.1rem;
+        }
+
+        .console-time {
+            color: var(--text-secondary);
+            margin-right: 0.4rem;
+        }
+
+        /* Da Nang background watermark */
+        .danang-watermark {
+            position: fixed;
+            bottom: -10px;
+            left: 0;
+            width: 100%;
+            height: auto;
+            max-height: 22vh;
+            z-index: -1;
+            pointer-events: none;
+            user-select: none;
+            overflow: hidden;
+        }
+
+        /* Keyframes */
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        @keyframes blink {
+            50% { opacity: 0.5; }
+        }
+
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 2.5rem;
+            color: var(--text-secondary);
+            background: rgba(15,23,42,0.2);
+            border: 1px dashed var(--border-color);
+            border-radius: 1rem;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Subtle Da Nang Watermark SVG -->
+    <div class="danang-watermark">
+        <svg viewBox="0 0 1000 260" width="100%" height="100%" preserveAspectRatio="xMidYMax meet">
+            <!-- River Waves -->
+            <path d="M 0 225 Q 125 215 250 225 T 500 225 T 750 225 T 1000 225" fill="none" stroke="rgba(56, 189, 248, 0.05)" stroke-width="2"/>
+            <path d="M 0 240 Q 125 235 250 240 T 500 240 T 750 240 T 1000 240" fill="none" stroke="rgba(56, 189, 248, 0.03)" stroke-width="1.5"/>
+            <!-- Bridge Deck -->
+            <line x1="0" y1="190" x2="1000" y2="190" stroke="rgba(148, 163, 184, 0.08)" stroke-width="4"/>
+            <line x1="0" y1="194" x2="1000" y2="194" stroke="rgba(148, 163, 184, 0.04)" stroke-width="2"/>
+            <!-- Bridge Piers -->
+            <line x1="190" y1="190" x2="190" y2="225" stroke="rgba(148, 163, 184, 0.08)" stroke-width="3"/>
+            <line x1="450" y1="190" x2="450" y2="225" stroke="rgba(148, 163, 184, 0.08)" stroke-width="3"/>
+            <line x1="740" y1="190" x2="740" y2="225" stroke="rgba(148, 163, 184, 0.08)" stroke-width="3"/>
+            <!-- Tail -->
+            <path d="M 80 190 L 65 155 Q 55 135 40 148 L 30 162 L 15 152 L 35 190 Z" fill="rgba(245, 158, 11, 0.03)" stroke="rgba(245, 158, 11, 0.09)" stroke-width="1.5"/>
+            <!-- Dragon Body Arches -->
+            <path d="M 80 190 Q 190 70 300 190" fill="none" stroke="rgba(245, 158, 11, 0.08)" stroke-width="5"/>
+            <path d="M 320 190 Q 450 50 580 190" fill="none" stroke="rgba(245, 158, 11, 0.08)" stroke-width="5"/>
+            <path d="M 600 190 Q 740 30 880 190" fill="none" stroke="rgba(245, 158, 11, 0.08)" stroke-width="5"/>
+            <!-- Vertical Hangers -->
+            <line x1="140" y1="125" x2="140" y2="190" stroke="rgba(245, 158, 11, 0.04)" stroke-width="1"/>
+            <line x1="190" y1="100" x2="190" y2="190" stroke="rgba(245, 158, 11, 0.04)" stroke-width="1"/>
+            <line x1="240" y1="125" x2="240" y2="190" stroke="rgba(245, 158, 11, 0.04)" stroke-width="1"/>
+            <line x1="385" y1="105" x2="385" y2="190" stroke="rgba(245, 158, 11, 0.04)" stroke-width="1"/>
+            <line x1="450" y1="80" x2="450" y2="190" stroke="rgba(245, 158, 11, 0.04)" stroke-width="1"/>
+            <line x1="515" y1="105" x2="515" y2="190" stroke="rgba(245, 158, 11, 0.04)" stroke-width="1"/>
+            <line x1="670" y1="90" x2="670" y2="190" stroke="rgba(245, 158, 11, 0.04)" stroke-width="1"/>
+            <line x1="740" y1="62" x2="740" y2="190" stroke="rgba(245, 158, 11, 0.04)" stroke-width="1"/>
+            <line x1="810" y1="90" x2="810" y2="190" stroke="rgba(245, 158, 11, 0.04)" stroke-width="1"/>
+            <!-- Head -->
+            <path d="M 880 190 L 900 150 Q 915 110 935 125 L 945 105 L 965 115 Q 950 145 935 160 L 955 170 L 910 190 Z" fill="rgba(245, 158, 11, 0.03)" stroke="rgba(245, 158, 11, 0.09)" stroke-width="1.5"/>
+            <!-- Fire Breath -->
+            <path d="M 945 115 Q 980 95 1010 110 Q 980 130 945 120 Z" fill="rgba(244, 63, 94, 0.02)" stroke="rgba(244, 63, 94, 0.08)" stroke-width="1" stroke-dasharray="3 3"/>
+            <!-- Label -->
+            <text x="500" y="252" fill="rgba(148, 163, 184, 0.1)" font-family="'Outfit', sans-serif" font-size="11" letter-spacing="12" text-anchor="middle">DA NANG DRAGON BRIDGE</text>
+        </svg>
+    </div>
+
+    <!-- Header Banner -->
+    <header class="header-banner">
+        <div class="banner-text">
+            <h1>CANOPUS | CONTROL CENTER</h1>
+            <p>High-Performance LoRa Gateway Telemetry</p>
+        </div>
+        <div class="header-right-group">
+            <div class="connection-mode-badge" id="active-mode-display">DIRECT POLL</div>
+            <div class="system-status">
+                <div id="status-net-dot" class="status-dot offline"></div>
+                <span id="status-net-text">OFFLINE</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Grid -->
+    <div class="main-layout">
+        
+        <!-- Left Pane: Monitors, Weather Station, Charts & Node Grid -->
+        <div class="column">
+            
+            <!-- Card 1: Network & Gateway Health -->
+            <section class="glass-card">
+                <div class="card-header">
+                    <h2><span class="icon">📡</span> Network Health & Gateway</h2>
+                    <span class="badge-live">LIVE</span>
+                </div>
+
+                <!-- Stats Summary -->
+                <div class="stats-summary">
+                    <div class="stat-item total">
+                        <span class="stat-label">Total Nodes</span>
+                        <span id="stat-total" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item online">
+                        <span class="stat-label">Active Nodes</span>
+                        <span id="stat-online" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item offline">
+                        <span class="stat-label">Offline Nodes</span>
+                        <span id="stat-offline" class="stat-value">0</span>
+                    </div>
+                </div>
+
+                <!-- Gateway Status Monitor -->
+                <div class="gateway-monitor-grid">
+                    <div class="gw-section">
+                        <span class="gw-label">MQTT Broker</span>
+                        <span id="gw-mqtt-state" class="gw-value">Disconnected</span>
+                    </div>
+                    <div class="gw-section">
+                        <span class="gw-label">Gateway IP</span>
+                        <span id="gw-ip-addr" class="gw-value">--</span>
+                    </div>
+                    <div class="gw-section">
+                        <span class="gw-label">System Uptime</span>
+                        <span id="gw-uptime-val" class="gw-value mono">--</span>
+                    </div>
+                    <div class="gw-section">
+                        <span class="gw-label">Power (ESP/Accu)</span>
+                        <span id="gw-power-val" class="gw-value mono">--</span>
+                    </div>
+                </div>
+
+                <!-- Gateway Local Sensors Widget Bar -->
+                <div class="gateway-sensors-bar">
+                    <div class="gw-sensor-widget" title="Gateway Air Temperature">
+                        <span class="gw-sensor-lbl">Temperature</span>
+                        <span class="gw-sensor-val"><span id="gws-temp">--</span>°C</span>
+                    </div>
+                    <div class="gw-sensor-widget" title="Gateway Air Humidity">
+                        <span class="gw-sensor-lbl">Humidity</span>
+                        <span class="gw-sensor-val"><span id="gws-hum">--</span>%</span>
+                    </div>
+                    <div class="gw-sensor-widget" title="Gateway Water Level">
+                        <span class="gw-sensor-lbl">Water Level</span>
+                        <span class="gw-sensor-val"><span id="gws-water">--</span>%</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Card 2: Weather Station Visualizer -->
+            <section class="glass-card">
+                <div class="card-header">
+                    <h2><span class="icon">🌤️</span> Da Nang Weather Station</h2>
+                    <span class="badge-live">LIVE SYS</span>
+                </div>
+                <div class="weather-content">
+                    <div class="weather-visual">
+                        <svg viewBox="0 0 200 160" class="weather-svg">
+                            <!-- Ground and Tower line -->
+                            <line x1="20" y1="140" x2="180" y2="140" stroke="#475569" stroke-width="2" opacity="0.3" />
+                            <line x1="100" y1="140" x2="100" y2="60" stroke="#94a3b8" stroke-width="3" opacity="0.6" />
+                            
+                            <!-- Sun (glowing and animated) -->
+                            <g id="we-sun">
+                                <circle cx="150" cy="40" r="16" fill="#f59e0b" opacity="0.2" class="sun-glow" style="transform-origin: 150px 40px;" />
+                                <circle cx="150" cy="40" r="10" fill="#f59e0b" />
+                                <!-- Rays -->
+                                <g class="sun-rays" style="transform-origin: 150px 40px;">
+                                    <line x1="150" y1="24" x2="150" y2="18" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+                                    <line x1="150" y1="56" x2="150" y2="62" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+                                    <line x1="134" y1="40" x2="128" y2="40" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+                                    <line x1="166" y1="40" x2="172" y2="40" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+                                    <line x1="139" y1="29" x2="134" y2="24" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+                                    <line x1="161" y1="51" x2="166" y2="56" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+                                    <line x1="139" y1="51" x2="134" y2="56" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+                                    <line x1="161" y1="29" x2="166" y2="24" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+                                </g>
+                            </g>
+
+                            <!-- Rain Cloud -->
+                            <g id="we-cloud">
+                                <path d="M40,55 a12,12 0 0,1 22,-4 a10,10 0 0,1 15,2 a12,12 0 0,1 1,18 a12,12 0 0,1 -38,-1 z" fill="#64748b" opacity="0.85"/>
+                                <!-- Animated Rain Drops -->
+                                <g class="rain-drops">
+                                    <line x1="46" y1="78" x2="43" y2="88" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round" class="rain-drop drop-1" />
+                                    <line x1="56" y1="81" x2="53" y2="91" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round" class="rain-drop drop-2" />
+                                    <line x1="66" y1="78" x2="63" y2="88" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round" class="rain-drop drop-3" />
+                                </g>
+                            </g>
+
+                            <!-- Anemometer (wind cups) at (100, 45) -->
+                            <g id="we-anemometer" class="spinning-cups" style="transform-origin: 100px 45px; --cup-spin-dur: 4s;">
+                                <line x1="100" y1="45" x2="100" y2="28" stroke="#94a3b8" stroke-width="2" />
+                                <circle cx="100" cy="28" r="4.5" fill="#38bdf8" />
+                                <line x1="100" y1="45" x2="115" y2="53" stroke="#94a3b8" stroke-width="2" />
+                                <circle cx="115" cy="53" r="4.5" fill="#38bdf8" />
+                                <line x1="100" y1="45" x2="85" y2="53" stroke="#94a3b8" stroke-width="2" />
+                                <circle cx="85" cy="53" r="4.5" fill="#38bdf8" />
+                                <circle cx="100" cy="45" r="4" fill="#f8fafc" />
+                            </g>
+                            
+                            <!-- Wind Vane (Arrow) at (100, 60) -->
+                            <g id="we-vane" style="transform-origin: 100px 60px;">
+                                <path d="M 100 50 L 103 66 L 97 66 Z M 100 50 L 100 70 M 94 70 L 106 70" stroke="#f43f5e" stroke-width="1.5" fill="none"/>
+                                <polygon points="100,47 103,53 97,53" fill="#f43f5e" />
+                            </g>
+                        </svg>
+                    </div>
+                    
+                    <div class="weather-metrics">
+                        <div class="metric-row">
+                            <span class="m-label">Wind Speed</span>
+                            <div class="m-bar-container"><div class="m-bar wind-bar" id="wm-wind-bar"></div></div>
+                            <span class="m-value" id="wm-wind-val">-- m/s</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="m-label">Rainfall</span>
+                            <div class="m-bar-container"><div class="m-bar rain-bar" id="wm-rain-bar"></div></div>
+                            <span class="m-value" id="wm-rain-val">-- mm</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="m-label">Sunlight</span>
+                            <div class="m-bar-container"><div class="m-bar solar-bar" id="wm-solar-bar"></div></div>
+                            <span class="m-value" id="wm-solar-val">-- W/m²</span>
+                        </div>
+                        <div class="metric-row2">
+                            <div class="sub-metric">
+                                <span class="m-label">Temperature</span>
+                                <span class="m-value2" id="wm-temp-val">--°C</span>
+                            </div>
+                            <div class="sub-metric">
+                                <span class="m-label">Humidity</span>
+                                <span class="m-value2" id="wm-hum-val">--%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Card 3: Node History Charts -->
+            <section class="glass-card" id="chart-container-parent">
+                <div class="card-header">
+                    <h2><span class="icon">📈</span> Node Telemetry History (<span id="active-chart-node-label">Select Node</span>)</h2>
+                    <span class="badge-live" style="background: rgba(56, 189, 248, 0.15); color: var(--accent-blue);">ANALYSIS</span>
+                </div>
+                <div style="height: 180px; position: relative;">
+                    <canvas id="nodeHistoryChart"></canvas>
+                </div>
+            </section>
+
+            <!-- Card 4: Active LoRa Nodes -->
+            <section class="glass-card">
+                <div class="card-header">
+                    <h2><span class="icon">📡</span> Active LoRa Nodes</h2>
+                </div>
+                <!-- Active LoRa Nodes Grid -->
+                <div id="nodes-container" class="node-grid">
+                    <div class="empty-state">No sensor nodes detected. Waiting for connection...</div>
+                </div>
+            </section>
+            
+        </div>
+
+        <!-- Right Pane: Command Center & Console -->
+        <div class="column">
+            
+            <section class="glass-card">
+                <div class="card-header">
+                    <h2><span class="icon">🚀</span> Command Center</h2>
+                </div>
+
+                <!-- Tab bar -->
+                <div class="bubble-tabs">
+                    <button id="tab-ctrl-btn" class="tab-btn active" onclick="switchTab('ctrl')">Joystick</button>
+                    <button id="tab-cfg-btn" class="tab-btn" onclick="switchTab('cfg')">Settings</button>
+                    <button id="tab-conn-btn" class="tab-btn" onclick="switchTab('conn')">Connection</button>
+                </div>
+
+                <!-- Tab: joystick controls -->
+                <div id="panel-ctrl" class="tab-panel active">
+                    <div class="form-group">
+                        <label for="ctrl-node-id">Target (Node ID)</label>
+                        <select id="ctrl-node-id">
+                            <option value="1">Node 01</option>
+                            <option value="2">Node 02</option>
+                            <option value="3">Node 03</option>
+                            <option value="4">Node 04</option>
+                            <option value="5">Node 05</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="ctrl-cmd">Control Command</label>
+                        <select id="ctrl-cmd" onchange="syncCmdInput()">
+                            <option value="PUMP_ON">PUMP_ON (Turn On Pump)</option>
+                            <option value="PUMP_OFF">PUMP_OFF (Turn Off Pump)</option>
+                            <option value="VALVE_ON">VALVE_ON (Open Valve)</option>
+                            <option value="VALVE_OFF">VALVE_OFF (Close Valve)</option>
+                            <option value="PING">PING (Test Link)</option>
+                            <option value="custom">-- Custom Command --</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="grp-custom-cmd" style="display: none;">
+                        <label for="ctrl-custom-val">Command Content</label>
+                        <input type="text" id="ctrl-custom-val" placeholder="e.g. REBOOT">
+                    </div>
+                    <div class="form-group" style="flex-direction: row; align-items: center; gap: 0.5rem; margin: 0.25rem 0;">
+                        <input type="checkbox" id="ctrl-urgent" style="width: 15px; height: 15px; cursor: pointer;">
+                        <label for="ctrl-urgent" style="cursor: pointer; user-select: none;">Urgent command frame</label>
+                    </div>
+                    <button class="btn" onclick="sendNodeCommand()">Send Command</button>
+                </div>
+
+                <!-- Tab: settings configuration -->
+                <div id="panel-cfg" class="tab-panel">
+                    <div class="form-group">
+                        <label for="cfg-param">Gateway Parameter</label>
+                        <select id="cfg-param" onchange="syncConfigInput()">
+                            <option value="SET_SF">Spreading Factor (SF)</option>
+                            <option value="SET_TOTAL_NODES">Total nodes supported</option>
+                            <option value="FORCE_SYNC">FORCE_SYNC (Force Sync)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="grp-cfg-val">
+                        <label for="cfg-val">Set value</label>
+                        <input type="number" id="cfg-val" placeholder="e.g. 7" min="7" max="12">
+                    </div>
+                    <button class="btn" onclick="sendGatewayConfig()">Apply Config</button>
+                </div>
+
+                <!-- Tab: connection settings -->
+                <div id="panel-conn" class="tab-panel">
+                    <div class="form-group">
+                        <label for="conn-type">Connection Protocol</label>
+                        <select id="conn-type" onchange="switchConnectionProtocol(this.value)">
+                            <option value="direct">Direct HTTP (to ESP32 IP)</option>
+                            <option value="mqtt">MQTT WebSockets (via Broker)</option>
+                        </select>
+                    </div>
+                    <div id="cfg-group-direct">
+                        <div class="form-group">
+                            <label for="gateway-ip">ESP32 Gateway IP Address</label>
+                            <input type="text" id="gateway-ip" placeholder="192.168.1.100" value="192.168.1.100" onchange="restartPolling()">
+                        </div>
+                    </div>
+                    <div id="cfg-group-mqtt" style="display: none; gap: 0.75rem; flex-direction: column;">
+                        <div class="form-group">
+                            <label for="mqtt-host">MQTT Host / IP (WebSockets)</label>
+                            <input type="text" id="mqtt-host" placeholder="broker.hivemq.com" value="broker.hivemq.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="mqtt-port">MQTT WS Port</label>
+                            <input type="number" id="mqtt-port" placeholder="8000" value="8000">
+                        </div>
+                        <div class="form-group">
+                            <label for="mqtt-user">Username (Optional)</label>
+                            <input type="text" id="mqtt-user" placeholder="">
+                        </div>
+                        <div class="form-group">
+                            <label for="mqtt-pass">Password (Optional)</label>
+                            <input type="password" id="mqtt-pass" placeholder="">
+                        </div>
+                        <button class="btn btn-secondary" id="btn-mqtt-conn" onclick="connectMQTT()">Connect Broker</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="glass-card">
+                <div class="card-header">
+                    <h2><span class="icon">💻</span> Live Log Console</h2>
+                    <button class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.7rem; border-radius: 4px; cursor: pointer;" onclick="clearConsole()">Clear</button>
+                </div>
+                <div id="console-log" class="console-container">
+                    <div class="console-line"><span class="console-time">--:--:--</span>Control panel initialized. Ready...</div>
+                </div>
+            </section>
+            
+        </div>
+        
+    </div>
+
+    <script>
+        let connectionMode = 'direct'; // 'direct' or 'mqtt'
+        let pollTimer = null;
+        let mqttClient = null;
+        
+        let nodesCache = {};
+        let nodeHistory = {}; // Key: nodeId, value: { times: [], temp: [], hum: [] }
+        let activeChartNodeId = null;
+        let telemetryChart = null;
+        let uptimeSec = 0;
+
+        function log(msg) {
+            const consoleLog = document.getElementById('console-log');
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            const div = document.createElement('div');
+            div.className = 'console-line';
+            div.innerHTML = `<span class="console-time">${timeStr}</span>${msg}`;
+            consoleLog.appendChild(div);
+            consoleLog.scrollTop = consoleLog.scrollHeight;
+        }
+
+        function clearConsole() {
+            document.getElementById('console-log').innerHTML = '';
+            log("Console logs cleared.");
+        }
+
+        function formatUptime(seconds) {
+            let s = seconds;
+            let m = Math.floor(s / 60);
+            let h = Math.floor(m / 60);
+            let d = Math.floor(h / 24);
+            s %= 60;
+            m %= 60;
+            h %= 24;
+            let res = "";
+            if (d > 0) res += d + "d ";
+            if (h > 0 || d > 0) res += h + "h ";
+            if (m > 0 || h > 0 || d > 0) res += m + "m ";
+            res += s + "s";
+            return res;
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+            
+            document.getElementById(`tab-${tabId}-btn`).classList.add('active');
+            document.getElementById(`panel-${tabId}`).classList.add('active');
+        }
+
+        function syncCmdInput() {
+            const cmd = document.getElementById('ctrl-cmd').value;
+            const customGrp = document.getElementById('grp-custom-cmd');
+            if (cmd === 'custom') {
+                customGrp.style.display = 'flex';
+            } else {
+                customGrp.style.display = 'none';
+            }
+        }
+
+        function syncConfigInput() {
+            const param = document.getElementById('cfg-param').value;
+            const valGroup = document.getElementById('grp-cfg-val');
+            const valInput = document.getElementById('cfg-val');
+            
+            if (param === 'FORCE_SYNC') {
+                valGroup.style.display = 'none';
+            } else {
+                valGroup.style.display = 'flex';
+                if (param === 'SET_SF') {
+                    valInput.type = 'number';
+                    valInput.placeholder = 'SF (7-12)';
+                    valInput.min = '7';
+                    valInput.max = '12';
+                    valInput.value = '7';
+                } else if (param === 'SET_TOTAL_NODES') {
+                    valInput.type = 'number';
+                    valInput.placeholder = 'Total nodes (1-100)';
+                    valInput.min = '1';
+                    valInput.max = '100';
+                    valInput.value = '10';
+                }
+            }
+        }
+
+        function switchConnectionProtocol(proto) {
+            connectionMode = proto;
+            document.getElementById('active-mode-display').textContent = proto === 'direct' ? 'DIRECT POLL' : 'MQTT WEBSOCKETS';
+            document.getElementById('cfg-group-direct').style.display = proto === 'direct' ? 'flex' : 'none';
+            document.getElementById('cfg-group-mqtt').style.display = proto === 'mqtt' ? 'flex' : 'none';
+
+            if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+            if (mqttClient) {
+                try { mqttClient.disconnect(); } catch(e){}
+                mqttClient = null;
+                document.getElementById('btn-mqtt-conn').textContent = "Connect Broker";
+            }
+            
+            // Reset network indicator
+            document.getElementById('status-net-dot').className = 'status-dot offline';
+            document.getElementById('status-net-text').textContent = 'OFFLINE';
+
+            if (proto === 'direct') {
+                restartPolling();
+            } else {
+                log("Switched to MQTT WebSockets. Please click Connect.");
+            }
+        }
+
+        function restartPolling() {
+            if (pollTimer) clearInterval(pollTimer);
+            log("Started HTTP polling to " + getGatewayURL());
+            pollTimer = setInterval(pollDirectData, 2000);
+            pollDirectData();
+        }
+
+        function getGatewayURL() {
+            if (window.location.protocol !== 'file:') {
+                return window.location.origin;
+            }
+            let ip = document.getElementById('gateway-ip').value.trim();
+            if (!ip.startsWith('http')) {
+                ip = 'http://' + ip;
+            }
+            return ip;
+        }
+
+        // HTTP Poll data
+        async function pollDirectData() {
+            if (connectionMode !== 'direct') return;
+            const url = getGatewayURL() + '/api/data';
+            try {
+                const response = await fetch(url, { mode: 'cors' });
+                const data = await response.json();
+                
+                // Set online status
+                document.getElementById('status-net-dot').className = 'status-dot';
+                document.getElementById('status-net-text').textContent = 'ONLINE (HTTP)';
+                
+                // Uptime
+                uptimeSec = Math.floor(data.system.uptime / 1000);
+                document.getElementById('gw-uptime-val').textContent = formatUptime(uptimeSec);
+                
+                // IP & MQTT Status
+                document.getElementById('gw-ip-addr').textContent = data.system.ip;
+                document.getElementById('gw-mqtt-state').textContent = data.system.mqtt ? 'Connected' : 'Disconnected';
+                document.getElementById('gw-power-val').textContent = `${data.local_sensors.batt_v.toFixed(2)}V / ${data.local_sensors.accu_v.toFixed(2)}V`;
+
+                // Update Local sensor widgets
+                updateGatewaySensorsUI(data.local_sensors);
+                
+                // Update Weather station visualizer
+                updateWeatherSimulator(data.local_sensors);
+
+                // Update node histories & trigger chart update
+                updateNodesHistory(data.nodes);
+                
+                // Render nodes list
+                renderNodes(data.nodes);
+            } catch(e) {
+                document.getElementById('status-net-dot').className = 'status-dot offline';
+                document.getElementById('status-net-text').textContent = 'GATEWAY UNREACHABLE';
+            }
+        }
+
+        function updateGatewaySensorsUI(sensors) {
+            // Display Air Temp (temp1), Humidity (hum1), and Water Level
+            document.getElementById('gws-temp').textContent = sensors.temp1 ? sensors.temp1.toFixed(1) : '--';
+            document.getElementById('gws-hum').textContent = sensors.hum1 ? sensors.hum1.toFixed(1) : '--';
+            document.getElementById('gws-water').textContent = sensors.water_level ? sensors.water_level.toFixed(1) : '--';
+        }
+
+        function updateWeatherSimulator(sensors) {
+            // Wind speed
+            const windVal = sensors.wind ? sensors.wind : 0.0;
+            document.getElementById('wm-wind-val').textContent = windVal.toFixed(1) + ' m/s';
+            const windPct = Math.min((windVal / 25.0) * 100, 100);
+            document.getElementById('wm-wind-bar').style.width = windPct + '%';
+            
+            // Set cup spin animation speed (pauses if 0)
+            const cupGroup = document.getElementById('we-anemometer');
+            if (cupGroup) {
+                if (windVal > 0.1) {
+                    cupGroup.style.animationPlayState = 'running';
+                    cupGroup.style.setProperty('--cup-spin-dur', Math.min(Math.max(12.0 / windVal, 0.2), 10.0) + 's');
+                } else {
+                    cupGroup.style.animationPlayState = 'paused';
+                }
+            }
+            
+            // Rain level
+            const rainVal = sensors.rain ? sensors.rain : 0.0;
+            document.getElementById('wm-rain-val').textContent = rainVal.toFixed(1) + ' mm';
+            const rainPct = Math.min((rainVal / 100.0) * 100, 100);
+            document.getElementById('wm-rain-bar').style.width = rainPct + '%';
+            
+            // Display/Hide rain drops based on rain value
+            const drops = document.querySelectorAll('.rain-drop');
+            drops.forEach(d => {
+                if (rainVal > 0.1) {
+                    d.style.display = 'block';
+                    d.style.animationDuration = Math.max(1.5 - (rainVal / 50.0), 0.3) + 's';
+                } else {
+                    d.style.display = 'none';
+                }
+            });
+            
+            // Solar index
+            const solarVal = sensors.solar ? sensors.solar : 0.0;
+            document.getElementById('wm-solar-val').textContent = solarVal.toFixed(0) + ' W/m²';
+            const solarPct = Math.min((solarVal / 1000.0) * 100, 100);
+            document.getElementById('wm-solar-bar').style.width = solarPct + '%';
+            
+            // Adjust glowing sun opacity
+            const sunGlow = document.querySelector('.sun-glow');
+            if (sunGlow) {
+                sunGlow.style.opacity = Math.max((solarVal / 1000.0) * 0.4, 0.15);
+            }
+
+            // Inline sub-metrics (Weather Temp & Weather Humid are mapped to Temp 1 and Hum 1 for display)
+            document.getElementById('wm-temp-val').textContent = sensors.temp1 ? sensors.temp1.toFixed(1) + '°C' : '--°C';
+            document.getElementById('wm-hum-val').textContent = sensors.hum1 ? sensors.hum1.toFixed(1) + '%' : '--%';
+        }
+
+        function updateNodesHistory(nodes) {
+            if (!nodes) return;
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0]; // HH:MM:SS
+            
+            nodes.forEach(node => {
+                const nid = node.id;
+                nodesCache[nid] = node;
+                
+                if (!nodeHistory[nid]) {
+                    nodeHistory[nid] = { times: [], temp: [], hum: [] };
+                }
+                
+                let tVal = node.s1;
+                let hVal = node.s2;
+                
+                // Avoid duplicating timestamps (e.g. if polling faster than updates)
+                const hist = nodeHistory[nid];
+                const lastTime = hist.times[hist.times.length - 1];
+                if (lastTime !== timeStr) {
+                    hist.times.push(timeStr);
+                    hist.temp.push(tVal);
+                    hist.hum.push(hVal);
+                    
+                    if (hist.times.length > 20) {
+                        hist.times.shift();
+                        hist.temp.shift();
+                        hist.hum.shift();
+                    }
+                }
+            });
+            
+            // Auto-select first node if none active
+            if (activeChartNodeId === null && nodes.length > 0) {
+                selectChartNode(nodes[0].id);
+            } else {
+                updateChartData();
+            }
+        }
+
+        function selectChartNode(nodeId) {
+            activeChartNodeId = parseInt(nodeId);
+            document.getElementById('active-chart-node-label').textContent = `Node #${nodeId}`;
+            
+            // Re-render nodes container so selected node receives active highlight class
+            if (connectionMode === 'direct') {
+                // Will render on next polling cycle anyway, but let's update list instantly
+                const list = [];
+                for (let id in nodesCache) list.push(nodesCache[id]);
+                renderNodes(list);
+            } else {
+                rebuildNodesFromCache();
+            }
+            
+            updateChartData();
+        }
+
+        function updateChartData() {
+            if (!telemetryChart || activeChartNodeId === null) return;
+            
+            const hist = nodeHistory[activeChartNodeId];
+            if (!hist || hist.times.length === 0) {
+                telemetryChart.data.labels = [];
+                telemetryChart.data.datasets[0].data = [];
+                telemetryChart.data.datasets[1].data = [];
+                telemetryChart.update('none');
+                return;
+            }
+            
+            const node = nodesCache[activeChartNodeId];
+            if (node) {
+                if (node.type === 1) { // AGRI
+                    telemetryChart.data.datasets[0].label = 'Temperature (°C)';
+                    telemetryChart.data.datasets[1].label = 'Humidity (%)';
+                    telemetryChart.options.scales.y.title.text = 'Temp (°C)';
+                    telemetryChart.options.scales.y1.title.text = 'Humid (%)';
+                } else {
+                    telemetryChart.data.datasets[0].label = 'ADC Channel 1';
+                    telemetryChart.data.datasets[1].label = 'ADC Channel 2';
+                    telemetryChart.options.scales.y.title.text = 'ADC 1';
+                    telemetryChart.options.scales.y1.title.text = 'ADC 2';
+                }
+            }
+            
+            telemetryChart.data.labels = hist.times;
+            telemetryChart.data.datasets[0].data = hist.temp;
+            telemetryChart.data.datasets[1].data = hist.hum;
+            telemetryChart.update('none');
+        }
+
+        function renderNodes(nodes) {
+            const container = document.getElementById('nodes-container');
+            const totalVal = document.getElementById('stat-total');
+            const onlineVal = document.getElementById('stat-online');
+            const offlineVal = document.getElementById('stat-offline');
+            
+            if (!nodes || nodes.length === 0) {
+                container.innerHTML = '<div class="empty-state">No sensor nodes detected. Waiting for connection...</div>';
+                totalVal.textContent = '0';
+                onlineVal.textContent = '0';
+                offlineVal.textContent = '0';
+                return;
+            }
+
+            totalVal.textContent = nodes.length;
+            let onlineCount = 0;
+            let offlineCount = 0;
+            let html = '';
+
+            nodes.forEach(node => {
+                const isStale = node.last_seen > 60;
+                const isOffline = node.last_seen > 300;
+                
+                if (isOffline) offlineCount++;
+                else onlineCount++;
+
+                let cardStatusCls = '';
+                if (isOffline) cardStatusCls = 'offline';
+                else if (isStale) cardStatusCls = 'stale';
+
+                if (node.id === activeChartNodeId) {
+                    cardStatusCls += ' active-card';
+                }
+
+                let s1Label = "Sensor 1";
+                let s2Label = "Sensor 2";
+                let s1Val = node.s1.toFixed(1);
+                let s2Val = node.s2.toFixed(1);
+
+                if (node.type === 1) { // AGRI
+                    s1Label = "Temperature";
+                    s2Label = "Humidity";
+                    s1Val += "°C";
+                    s2Val += "%";
+                }
+                
+                html += `
+                    <div class="node-card ${cardStatusCls}" onclick="selectChartNode(${node.id})">
+                        <div class="node-card-top">
+                            <div class="node-title-row">
+                                <h3>Node #${node.id}</h3>
+                                <span class="node-type-badge ${node.type === 1 ? 'badge-agri' : 'badge-raw'}">${node.type === 1 ? 'AGRI' : 'RAW-ADC'}</span>
+                            </div>
+                            ${renderSignalBars(node.rssi)}
+                        </div>
+                        <div class="node-info-row">
+                            <span class="node-info-label">${s1Label}</span>
+                            <span class="node-info-val text-amber">${s1Val}</span>
+                        </div>
+                        <div class="node-info-row">
+                            <span class="node-info-label">${s2Label}</span>
+                            <span class="node-info-val text-sky">${s2Val}</span>
+                        </div>
+                        <div class="node-info-row">
+                            <span class="node-info-label">Node Battery</span>
+                            <span class="node-info-val">${node.vbat.toFixed(2)} V</span>
+                        </div>
+                        <div class="node-info-row">
+                            <span class="node-info-label">Drift</span>
+                            <span class="node-info-val text-rose">${node.drift} ms</span>
+                        </div>
+                        <div class="node-info-row">
+                            <span class="node-info-label">Last seen</span>
+                            <span class="node-info-val text-muted">${node.last_seen}s ago</span>
+                        </div>
+                        <div class="node-rf-row">
+                            <span>SNR: ${node.snr}dB</span>
+                            <span>SF: ${node.sf || '--'}</span>
+                        </div>
+                        <div class="node-actions">
+                            <button class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.7rem;" onclick="event.stopPropagation(); quickCommand(${node.id}, 'PUMP_ON')">ON</button>
+                            <button class="btn btn-secondary btn-danger" style="padding: 0.35rem 0.6rem; font-size: 0.7rem;" onclick="event.stopPropagation(); quickCommand(${node.id}, 'PUMP_OFF')">OFF</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            onlineVal.textContent = onlineCount;
+            offlineVal.textContent = offlineCount;
+        }
+
+        function renderSignalBars(rssi) {
+            let activeBars = 0;
+            if (rssi >= -70) activeBars = 4;
+            else if (rssi >= -85) activeBars = 3;
+            else if (rssi >= -100) activeBars = 2;
+            else if (rssi >= -120) activeBars = 1;
+            
+            let html = '<div class="signal-indicator" title="RSSI: ' + rssi + ' dBm">';
+            for (let i = 1; i <= 4; i++) {
+                html += `<div class="signal-bar ${i <= activeBars ? 'active' : ''}"></div>`;
+            }
+            html += '</div>';
+            return html;
+        }
+
+        // Actions: Config Gateway
+        async function sendGatewayConfig() {
+            const param = document.getElementById('cfg-param').value;
+            const valInput = document.getElementById('cfg-val');
+            
+            let commandStr = param;
+            if (param !== 'FORCE_SYNC') {
+                const val = valInput.value;
+                if (!val) {
+                    alert('Please enter a value!');
+                    return;
+                }
+                commandStr = param + '=' + val;
+            }
+
+            if (connectionMode === 'direct') {
+                log(`Sending configuration (HTTP): ${commandStr}...`);
+                try {
+                    const response = await fetch(getGatewayURL() + '/api/command', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                        body: `cmd=${encodeURIComponent(commandStr)}&node=0`
+                    });
+                    const data = await response.json();
+                    if (data.status === 'success') log(`Configuration applied successfully.`);
+                } catch(e) { log(`HTTP Config Error: ${e}`); }
+            } else {
+                if (!mqttClient || !mqttClient.isConnected()) {
+                    alert("Not connected to MQTT Broker!");
+                    return;
+                }
+                log(`Sending configuration (MQTT): ${commandStr}...`);
+                const msg = new Paho.MQTT.Message(commandStr);
+                msg.destinationName = "CANOPUS/CONFIG";
+                mqttClient.send(msg);
+                log("Published to CANOPUS/CONFIG");
+            }
+        }
+
+        // Actions: Node Control Command
+        async function sendNodeCommand() {
+            const nodeId = document.getElementById('ctrl-node-id').value;
+            const cmdType = document.getElementById('ctrl-cmd').value;
+            const urgent = document.getElementById('ctrl-urgent').checked;
+
+            let cmd = cmdType;
+            if (cmdType === 'custom') {
+                cmd = document.getElementById('ctrl-custom-val').value.trim();
+                if (!cmd) {
+                    alert("Please enter the custom command!");
+                    return;
+                }
+            }
+
+            if (connectionMode === 'direct') {
+                log(`Sending HTTP command to Node ${nodeId}...`);
+                try {
+                    const response = await fetch(getGatewayURL() + '/api/command', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                        body: `cmd=${encodeURIComponent(cmd)}&node=${nodeId}&urgent=${urgent}`
+                    });
+                    const data = await response.json();
+                    if (data.status === 'success') log(`Command sent. Raw frame: ${data.frame}`);
+                } catch(e) { log(`HTTP Command Error: ${e}`); }
+            } else {
+                if (!mqttClient || !mqttClient.isConnected()) {
+                    alert("Not connected to MQTT Broker!");
+                    return;
+                }
+                const topic = urgent ? "CANOPUS/URGENT" : "CANOPUS/CMD";
+                const payload = `${nodeId},${cmd}`;
+                log(`Sending MQTT command to ${topic}: ${payload}`);
+                
+                const msg = new Paho.MQTT.Message(payload);
+                msg.destinationName = topic;
+                mqttClient.send(msg);
+                log("MQTT command published.");
+            }
+        }
+
+        async function quickCommand(nodeId, cmd) {
+            if (connectionMode === 'direct') {
+                log(`Quick HTTP command: ${cmd} to Node ${nodeId}`);
+                try {
+                    await fetch(getGatewayURL() + '/api/command', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                        body: `cmd=${encodeURIComponent(cmd)}&node=${nodeId}&urgent=false`
+                    });
+                } catch(e) { log("Quick command error: " + e); }
+            } else {
+                if (!mqttClient || !mqttClient.isConnected()) {
+                    alert("Not connected to MQTT Broker!");
+                    return;
+                }
+                const payload = `${nodeId},${cmd}`;
+                const msg = new Paho.MQTT.Message(payload);
+                msg.destinationName = "CANOPUS/CMD";
+                mqttClient.send(msg);
+                log(`Quick MQTT command sent: ${payload}`);
+            }
+        }
+
+        // MQTT connections
+        function connectMQTT() {
+            if (mqttClient && mqttClient.isConnected()) {
+                mqttClient.disconnect();
+                return;
+            }
+
+            const host = document.getElementById('mqtt-host').value.trim();
+            const port = parseInt(document.getElementById('mqtt-port').value);
+            const user = document.getElementById('mqtt-user').value.trim();
+            const pass = document.getElementById('mqtt-pass').value.trim();
+
+            const clientId = "canopus_dashboard_" + Math.random().toString(16).substr(2, 8);
+            mqttClient = new Paho.MQTT.Client(host, port, clientId);
+
+            mqttClient.onConnectionLost = onMQTTConnectionLost;
+            mqttClient.onMessageArrived = onMQTTMessageArrived;
+
+            const options = {
+                onSuccess: onMQTTConnectSuccess,
+                onFailure: onMQTTConnectFailure,
+                useSSL: false
+            };
+
+            if (user) options.userName = user;
+            if (pass) options.password = pass;
+
+            log(`Connecting to MQTT Broker: ws://${host}:${port}...`);
+            document.getElementById('btn-mqtt-conn').textContent = "Connecting...";
+            mqttClient.connect(options);
+        }
+
+        function onMQTTConnectSuccess() {
+            log("MQTT connected successfully!");
+            document.getElementById('btn-mqtt-conn').textContent = "Disconnect";
+            document.getElementById('status-net-dot').className = 'status-dot';
+            document.getElementById('status-net-text').textContent = 'ONLINE (MQTT)';
+
+            mqttClient.subscribe("CANOPUS/#");
+            log("Subscribed to CANOPUS/#");
+            
+            uptimeSec = 0;
+            setInterval(() => {
+                if(connectionMode === 'mqtt') {
+                    uptimeSec++;
+                    document.getElementById('gw-uptime-val').textContent = formatUptime(uptimeSec);
+                }
+            }, 1000);
+        }
+
+        function onMQTTConnectFailure(err) {
+            log("MQTT Broker connection failed: " + JSON.stringify(err));
+            document.getElementById('btn-mqtt-conn').textContent = "Connect Broker";
+            document.getElementById('status-net-dot').className = 'status-dot offline';
+            document.getElementById('status-net-text').textContent = 'MQTT CONN FAIL';
+        }
+
+        function onMQTTConnectionLost(responseObject) {
+            log("MQTT Broker connection lost: " + responseObject.errorMessage);
+            document.getElementById('btn-mqtt-conn').textContent = "Connect Broker";
+            document.getElementById('status-net-dot').className = 'status-dot offline';
+            document.getElementById('status-net-text').textContent = 'OFFLINE';
+        }
+
+        function onMQTTMessageArrived(message) {
+            const topic = message.destinationName;
+            const payload = message.payloadString;
+            
+            log(`[MQTT ${topic}] ${payload}`);
+
+            try {
+                if (topic === "CANOPUS/DATA") {
+                    const data = JSON.parse(payload);
+                    const sensors = {
+                        temp1: data.T1,
+                        temp2: data.T2,
+                        hum1: data.H1,
+                        hum2: data.H2,
+                        wind: data.wind,
+                        rain: data.rain,
+                        solar: data.solar,
+                        water_level: data.water
+                    };
+                    updateGatewaySensorsUI(sensors);
+                    updateWeatherSimulator(sensors);
+                    
+                    document.getElementById('gw-mqtt-state').textContent = 'Connected';
+                    document.getElementById('gw-ip-addr').textContent = 'MQTT Broker';
+                }
+                else if (topic.startsWith("CANOPUS/NODE/") && topic.endsWith("/DATA")) {
+                    const data = JSON.parse(payload);
+                    const nodeId = data.id;
+                    if (!nodesCache[nodeId]) {
+                        nodesCache[nodeId] = { id: nodeId, valid: true, rssi:-90, snr: 6, drift:0, lastUpdate: Date.now() };
+                    }
+                    
+                    nodesCache[nodeId].type = data.type === "AGRI" ? 1 : 2;
+                    if (data.type === "AGRI") {
+                        nodesCache[nodeId].s1 = data.temp;
+                        nodesCache[nodeId].s2 = data.hum;
+                    } else {
+                        nodesCache[nodeId].s1 = data.adc1;
+                        nodesCache[nodeId].s2 = data.adc2;
+                    }
+                    nodesCache[nodeId].vbat = data.vbat;
+                    nodesCache[nodeId].seq = data.seq;
+                    nodesCache[nodeId].lastUpdate = Date.now();
+                    
+                    // Push to node histories list
+                    updateNodesHistory([ nodesCache[nodeId] ]);
+                    rebuildNodesFromCache();
+                }
+                else if (topic.startsWith("CANOPUS/NODE/") && topic.endsWith("/STATUS")) {
+                    const data = JSON.parse(payload);
+                    const nodeId = data.id;
+                    if (!nodesCache[nodeId]) {
+                        nodesCache[nodeId] = { id: nodeId, valid: true, lastUpdate: Date.now() };
+                    }
+                    nodesCache[nodeId].rssi = data.rssi;
+                    nodesCache[nodeId].snr = data.snr;
+                    nodesCache[nodeId].drift = data.drift;
+                    nodesCache[nodeId].sf = data.sf;
+                    
+                    rebuildNodesFromCache();
+                }
+            } catch(e) {
+                // Keep processing
+            }
+        }
+
+        function rebuildNodesFromCache() {
+            const list = [];
+            const now = Date.now();
+            for (let id in nodesCache) {
+                const node = nodesCache[id];
+                node.last_seen = Math.floor((now - node.lastUpdate) / 1000);
+                list.push(node);
+            }
+            renderNodes(list);
+        }
+
+        function initChart() {
+            if (typeof Chart === 'undefined') {
+                log("Chart.js failed to load. Graphs will not be displayed.");
+                document.getElementById('chart-container-parent').innerHTML = 
+                    '<div class="empty-state">Chart.js library not loaded. Ensure internet access to render telemetry graphs.</div>';
+                return;
+            }
+
+            const ctx = document.getElementById('nodeHistoryChart').getContext('2d');
+            
+            // Create gradient fills
+            const tempGrad = ctx.createLinearGradient(0, 0, 0, 160);
+            tempGrad.addColorStop(0, 'rgba(245, 158, 11, 0.35)');
+            tempGrad.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
+            
+            const humGrad = ctx.createLinearGradient(0, 0, 0, 160);
+            humGrad.addColorStop(0, 'rgba(56, 189, 248, 0.35)');
+            humGrad.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+
+            telemetryChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Temperature (°C)',
+                            borderColor: '#f59e0b',
+                            backgroundColor: tempGrad,
+                            borderWidth: 2,
+                            pointRadius: 1.5,
+                            pointHoverRadius: 4,
+                            fill: true,
+                            data: [],
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Humidity (%)',
+                            borderColor: '#38bdf8',
+                            backgroundColor: humGrad,
+                            borderWidth: 2,
+                            pointRadius: 1.5,
+                            pointHoverRadius: 4,
+                            fill: true,
+                            data: [],
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#94a3b8',
+                                font: { family: "'Outfit', sans-serif", size: 10 }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255, 255, 255, 0.03)' },
+                            ticks: { color: '#94a3b8', font: { family: "'JetBrains Mono', monospace", size: 8 } }
+                        },
+                        y: {
+                            position: 'left',
+                            grid: { color: 'rgba(255, 255, 255, 0.03)' },
+                            ticks: { color: '#f59e0b', font: { family: "'JetBrains Mono', monospace", size: 8 } },
+                            title: { display: true, text: 'Temp (°C)', color: '#f59e0b', font: { size: 9, weight: 'bold' } }
+                        },
+                        y1: {
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            ticks: { color: '#38bdf8', font: { family: "'JetBrains Mono', monospace", size: 8 } },
+                            title: { display: true, text: 'Humid (%)', color: '#38bdf8', font: { size: 9, weight: 'bold' } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize Direct Polling
+        switchConnectionProtocol('direct');
+        
+        // Initialize Chart.js
+        window.addEventListener('DOMContentLoaded', () => {
+            initChart();
+            if (window.location.protocol !== 'file:') {
+                document.getElementById('gateway-ip').value = window.location.host;
+            }
+        });
+    </script>
+</body>
+</html>
