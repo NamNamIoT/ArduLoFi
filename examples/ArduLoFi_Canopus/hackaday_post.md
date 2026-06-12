@@ -11,14 +11,14 @@ Deploying outdoor IoT sensor nodes often comes with two major frustrations:
 1. **Radio Traffic Jams**: When multiple sensor nodes transmit at the same time, their signals collide, leading to lost packets and gaps in your telemetry data.
 2. **Gateway Crashes**: Many maker-grade base stations suffer from memory leaks and crash after a few days or weeks of continuous operation.
 
-**ArduLoFi Canopus** is built to solve these exact problems. By combining smart time-slot scheduling (TDMA) with high-efficiency, zero-heap-allocation gateway firmware, Canopus provides an incredibly robust, 24/7 continuous telemetry system.
+**ArduLoFi Canopus** is built to solve these exact problems. By combining smart time-slot scheduling with high-efficiency, zero-heap-allocation gateway firmware, Canopus provides an incredibly robust, 24/7 continuous telemetry system.
 
 ---
 
 ## ✨ Key Features
 
 ### 📡 Collision-Free LoRa Communication
-No more lost packets! Canopus coordinates transmissions using a custom time-slot protocol. The gateway sends a synchronization beacon, and each node takes its turn to transmit in its own designated window. It even auto-corrects for slight timing drifts, keeping your network perfectly in sync.
+Rather than attempting to process overlapping packets arriving at the same time, Canopus manages nodes so they **never transmit at the same time**. The gateway coordinates the network using a custom time-slot protocol (TDMA). The gateway sends a synchronization beacon, and each node is scheduled to transmit only in its dedicated window. It even auto-corrects for slight timing drifts, keeping the entire network perfectly in sync and avoiding collisions before they can happen.
 
 ### ☀️ Autonomous Solar-Powered Nodes
 Designed for the great outdoors. The sensor nodes run on low-power STM32-based LoRa hardware, consuming less than 2µA in deep sleep. Combined with a tiny solar panel and battery charging circuit, the weather station runs indefinitely on clean solar energy.
