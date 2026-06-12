@@ -7,30 +7,25 @@
 
 ## 🛠️ The Challenge & The Solution
 
-Deploying outdoor IoT sensor nodes often comes with two major frustrations:
-1. **Radio Traffic Jams**: When multiple sensor nodes transmit at the same time, their signals collide, leading to lost packets and gaps in your telemetry data.
-2. **Gateway Crashes**: Many maker-grade base stations suffer from memory leaks and crash after a few days or weeks of continuous operation.
+Deploying multiple outdoor IoT sensor nodes often comes with a major frustration: **Radio Traffic Jams**. When multiple sensor nodes transmit at the same time, their signals collide, leading to lost packets and gaps in your telemetry data.
 
-**ArduLoFi Canopus** is built to solve these exact problems. By combining smart time-slot scheduling with high-efficiency, zero-heap-allocation gateway firmware, Canopus provides an incredibly robust, 24/7 continuous telemetry system.
+**ArduLoFi Canopus** is designed to coordinate nodes so they never transmit at the same time. By combining smart time-slot scheduling (TDMA) with a dedicated LoRa co-processor, Canopus provides a clean, collision-free multi-node telemetry network.
 
 ---
 
 ## ✨ Key Features
 
 ### 📡 Collision-Free LoRa Communication
-Rather than attempting to process overlapping packets arriving at the same time, Canopus manages nodes so they **never transmit at the same time**. The gateway coordinates the network using a custom time-slot protocol (TDMA). The gateway sends a synchronization beacon, and each node is scheduled to transmit only in its dedicated window. It even auto-corrects for slight timing drifts, keeping the entire network perfectly in sync and avoiding collisions before they can happen.
+No overlapping packet collisions. Canopus manages nodes using a custom time-slot protocol (TDMA). The gateway sends a synchronization beacon, and each node is scheduled to transmit only in its dedicated window. The system even auto-corrects for slight timing drifts, keeping the entire network perfectly in sync and avoiding collisions before they can happen.
 
 ### ☀️ Autonomous Solar-Powered Nodes
 Designed for the great outdoors. The sensor nodes run on low-power STM32-based LoRa hardware, consuming less than 2µA in deep sleep. Combined with a tiny solar panel and battery charging circuit, the weather station runs indefinitely on clean solar energy.
 
 ### 🎨 Premium Glassmorphic Web Dashboard
 Telemetry shouldn't be boring. Canopus hosts a modern, responsive web dashboard served directly from the gateway's flash memory or streamed remotely over MQTT:
-* **Live Animated weather elements**: The SVG weather widget actually matches the real-world metrics! Watch the wind cup speed spin faster, the rain drops speed up, and the sun glow intensify based on real telemetry.
+* **Live Animated weather elements**: The SVG weather widget matches the real-world metrics! Watch the wind cup speed spin faster, the rain drops speed up, and the sun glow intensify based on real telemetry.
 * **Interactive Line Charts**: Track history logs directly in your browser. Click on any sensor card to view real-time temperature and humidity plots.
 * **Da Nang Watermark**: A beautiful minimalist line-art outline of the Dragon Bridge (Cầu Rồng) blends technology with local design culture.
-
-### 🔒 Rock-Solid Industrial Firmware
-Engineered for ultimate uptime. The ESP32 gateway firmware is built using advanced memory-safe practices. By eliminating dynamic heap allocations in task processing, the gateway is immune to fragmentation crashes and memory leaks.
 
 ---
 
