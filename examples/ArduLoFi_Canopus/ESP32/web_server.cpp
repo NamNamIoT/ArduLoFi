@@ -56,7 +56,10 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
         body {
             font-family: var(--font-family);
             background-color: var(--bg-color);
-            background-image: radial-gradient(circle at top left, #1e293b, #0f172a);
+            background-image: radial-gradient(circle at top left, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95)), url('danang_landscape.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
             color: var(--text-primary);
             min-height: 100vh;
             display: flex;
