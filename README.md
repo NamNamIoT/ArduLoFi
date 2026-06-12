@@ -49,6 +49,10 @@ Powered by the official **RUI3 (v4.2.4+)** framework on the RAK3172 side and sta
 
 ## 🗺️ Board Information & Layout
 
+<p align="center">
+  <img src="examples/ArduLoFi_Canopus/canopus_promo.png" alt="ArduLoFi Board Layout" width="100%">
+</p>
+
 #### Version Hardware Revisions
 
 🏷️ **Rev 1.0 [June-2026] Layout:**
