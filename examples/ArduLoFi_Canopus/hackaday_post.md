@@ -1,7 +1,7 @@
 # Hardware Architecture & Design: ArduLoFi Canopus LoRa Gateway & Weather Station Node
 
 **Project Title**: ArduLoFi Canopus: Industrial-Grade ESP32 LoRa Gateway with Animated Telemetry Dashboard  
-**Subtitle**: An open-source, collision-free LoRa TDMA telemetry system designed for industrial Ethernet deployments and self-powered outdoor weather nodes.
+**Subtitle**: An open-source, collision-free LoRa TDMA telemetry system designed for Wi-Fi-enabled gateways and self-powered outdoor weather nodes.
 
 ---
 
@@ -10,20 +10,20 @@
 Many maker-grade IoT installations fail in the field due to two major bottlenecks: **packet collisions** under high-density node environments and **heap fragmentation** in gateway firmware running on dynamic strings. 
 
 **ArduLoFi Canopus** solves these issues through a hardware-software co-design:
-1. **Canopus Gateway (ESP32 + LAN8720A + RAK3172)**: An industrial-grade base station featuring physical RMII Ethernet for noise-immune network backhaul, combined with a dedicated LoRa co-processor running a custom TDMA scheduler.
+1. **Canopus Gateway (ESP32 + RAK3172)**: An industrial-grade base station featuring built-in Wi-Fi connectivity for network backhaul (MQTT and local web server hosting) paired with a dedicated LoRa co-processor running a custom TDMA scheduler.
 2. **Telemetry / Weather Node (RAK3172 standalone)**: An ultra-low-power, solar-harvesting outdoor station incorporating off-the-shelf physical weather sensors (cup anemometer, wind vane, rain gauge, Stevenson louver screen) communicating via precise time slots to eliminate radio collisions.
 
 ---
 
 ## 2. Gateway Hardware Architecture
 
-The Gateway splits responsibilities between a dual-core **ESP32-WROOM-32E** (handling networking, WebSockets, REST HTTP server, and local sensors) and a **RAK3172 module** (acting as a dedicated LoRa RF frontend and time-slot controller).
+The Gateway splits responsibilities between a dual-core **ESP32-WROOM-32E** (handling Wi-Fi networking, WebSockets, REST HTTP server, and local sensors) and a **RAK3172 module** (acting as a dedicated LoRa RF frontend and time-slot controller).
 
 ```mermaid
 graph TD
     subgraph Canopus Gateway
         ESP32[ESP32 Main MCU] <-->|UART 115200bps| RAK_GW[RAK3172 LoRa Co-Processor]
-        ETH[LAN8720A Ethernet PHY] <-->|RMII interface| ESP32
+        WiFi[WiFi 2.4GHz] <--> ESP32
         LM234[LM234 Temp Sensor] -->|Analog Read GPIO4| ESP32
         MCP[MCP2551 CAN Transceiver] <-->|CAN Controller| ESP32
         PWR[Battery & Accu Volts] -->|Resistor Divider ADCs| ESP32
@@ -31,17 +31,14 @@ graph TD
     RAK_GW <-->|LoRa 915MHz P2P TDMA| Node[RAK3172 Weather Node]
 ```
 
-### 2.1. Physical Ethernet Backhaul (LAN8720A)
-In industrial and urban environments, 2.4GHz Wi-Fi is highly congested and prone to interference. Canopus integrates a **LAN8720A RMII Ethernet transceiver**. 
-* **Clock Configuration**: The RMII interface requires a stable 50MHz reference clock. In this design, GPIO0 of the ESP32 is configured as the `ETH_CLOCK_GPIO0_IN` reference clock input.
-* **Pin Allocation**:
-  * **MDC (Management Data Clock)**: GPIO23
-  * **MDIO (Management Data Input/Output)**: GPIO18
-  * **PHY Address**: 1
-  * **Oscillator Enable**: GPIO14 (activates the external 50MHz active crystal oscillator only when Ethernet is active).
+### 2.1. Wi-Fi Connectivity & Network Services
+The Gateway connects to the internet or local intranet via the ESP32's built-in 2.4GHz Wi-Fi:
+* **AP and Station Modes**: Supports connection to standard local Wi-Fi networks (via WiFiMulti credentials) while running a local SoftAP hotspot fallback for configuration.
+* **REST & WebSockets Server**: Serves a dynamic glassmorphic telemetry dashboard directly from its flash memory, providing low-latency browser updates.
+* **MQTT Client**: Connects to an external MQTT broker (e.g., HiveMQ, EMQX) to publish node telemetry and diagnostics.
 
 ### 2.2. Dedicated LoRa Co-Processor (RAK3172)
-To offload RF timings and packet handling from the FreeRTOS web tasks, a **RAK3172 module** (STM32WLE5CC SoC) is interfaced via hardware serial:
+To offload RF timings and packet handling from the FreeRTOS network and web tasks, a **RAK3172 module** (STM32WLE5CC SoC) is interfaced via hardware serial:
 * **ESP32 RX / TX**: GPIO16 and GPIO17 connected to RAK3172 UART interface.
 * **Co-Processor Duty**: It executes a microsecond-accurate state machine that transmits a synchronization beacon (`*SYNC_START`) and receives data packets from nodes in dedicated time slots.
 
@@ -114,10 +111,6 @@ This closed-loop feedback loop keeps all nodes synchronized to within **±5ms** 
 
 | ESP32 Pin | Function | Description | Connection |
 | :--- | :--- | :--- | :--- |
-| **GPIO0** | `REF_CLK` | RMII 50MHz Reference Clock | LAN8720A RX_CLK |
-| **GPIO23** | `MDC` | Management Data Clock | LAN8720A MDC |
-| **GPIO18** | `MDIO` | Management Data I/O | LAN8720A MDIO |
-| **GPIO14** | `OSC_EN` | Enable 50MHz Crystal Oscillator | LAN8720A Enable pin |
 | **GPIO16** | `RX2` | Hardware Serial 2 RX | RAK3172 TX |
 | **GPIO17** | `TX2` | Hardware Serial 2 TX | RAK3172 RX |
 | **GPIO4** | `LM234_READ` | Analog read of temperature | LM234 Sensor Pin |
@@ -139,14 +132,13 @@ This closed-loop feedback loop keeps all nodes synchronized to within **±5ms** 
 | **PA9** | `LED_TX` | RF Packet Send indicator | Green LED |
 | **PA15**| `LED_RUN` | Main Heartbeat LED | Yellow LED |
 | **PA1** | `LED_SYNC` | Beacon Synchronization LED | Orange LED |
-| **PA0** | `ENABLE_VETH`| Power Switch | External Ethernet Transceiver |
 | **PB3** | `ANALOG_IN` | Analog Sensor Port | Tipping Bucket or Water sensor input |
 
 ---
 
 ## 6. How to Build & Assemble
 
-1. **PCB Fabrication**: Layout a dual-layer PCB matching the ESP32 pinouts and routing the high-speed 50MHz RMII lines with controlled impedance (keep them as short as possible).
+1. **PCB Fabrication**: Layout a dual-layer PCB matching the ESP32 pinouts and routing serial communication lines.
 2. **LoRa Setup**: Flash the RAK3172 modules using a USB-to-UART converter. Compile the [RAK3172.ino](file:///d:/Github/ArduLoFi/examples/ArduLoFi_Canopus/RAK3172/RAK3172.ino) firmware using the STM32 RUI3 board manager.
 3. **ESP32 Setup**: Compile and flash [ESP32.ino](file:///d:/Github/ArduLoFi/examples/ArduLoFi_Canopus/ESP32/ESP32.ino) to the main controller. Ensure the config file [config.h](file:///d:/Github/ArduLoFi/examples/ArduLoFi_Canopus/ESP32/config.h) has correct Wi-Fi and MQTT credentials.
 4. **Deploy Node**: Fit the SHT3x sensor in the Stevenson screen, mount the wind speed/direction sensors on your pole mast, and connect their terminals to the RAK3172 node inputs.
