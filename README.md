@@ -8,6 +8,10 @@
 
 Powered by the official **RUI3 (v4.2.4+)** framework on the RAK3172 side and standard ESP32 Arduino framework on the ESP32-C3 side, ArduLoFi is the perfect solution for smart agriculture, industrial automation, low-power remote monitoring, and telemetry nodes. It is highly suitable for building **IoT Gateways, Mesh Core nodes, Meshtastic networks, and LoRa APs (Access Points)**.
 
+<p align="center">
+  <img src="examples/ArduLoFi_Canopus/hackaday_img2.png" alt="ArduLoFi Canopus Dashboard" width="100%">
+</p>
+
 ---
 
 ## ✨ Key Features & Advantages
