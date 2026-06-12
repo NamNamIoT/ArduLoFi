@@ -554,6 +554,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
 
         .badge-agri { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
         .badge-raw { background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3); }
+        .badge-power { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
 
         .signal-indicator {
             display: flex;
@@ -1448,6 +1449,11 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
                     telemetryChart.data.datasets[1].label = 'Humidity (%)';
                     telemetryChart.options.scales.y.title.text = 'Temp (°C)';
                     telemetryChart.options.scales.y1.title.text = 'Humid (%)';
+                } else if (node.type === 3) { // POWER
+                    telemetryChart.data.datasets[0].label = 'Stored Energy (Wh)';
+                    telemetryChart.data.datasets[1].label = 'Running Power (W)';
+                    telemetryChart.options.scales.y.title.text = 'Energy (Wh)';
+                    telemetryChart.options.scales.y1.title.text = 'Power (W)';
                 } else {
                     telemetryChart.data.datasets[0].label = 'ADC Channel 1';
                     telemetryChart.data.datasets[1].label = 'ADC Channel 2';
@@ -1501,11 +1507,60 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
                 let s1Val = node.s1.toFixed(1);
                 let s2Val = node.s2.toFixed(1);
 
+                let badgeClass = 'badge-raw';
+                let typeBadge = 'RAW-ADC';
+                let visualHtml = '';
+                let extraInfoRows = '';
+
                 if (node.type === 1) { // AGRI
                     s1Label = "Temperature";
                     s2Label = "Humidity";
                     s1Val += "°C";
                     s2Val += "%";
+                    badgeClass = 'badge-agri';
+                    typeBadge = 'AGRI';
+                } else if (node.type === 3) { // POWER
+                    s1Label = "Stored Energy";
+                    s2Label = "Running Power";
+                    s1Val += " Wh";
+                    s2Val += " W";
+                    badgeClass = 'badge-power';
+                    typeBadge = 'POWER';
+                    
+                    // Render solar panel and battery SVGs connected by a pulsing lightning bolt
+                    visualHtml = `
+                        <div class="power-station-visual" style="display: flex; justify-content: space-around; align-items: center; padding: 0.35rem 0.5rem; background: rgba(15, 23, 42, 0.4); border-radius: 0.5rem; margin-top: 0.2rem; margin-bottom: 0.4rem; border: 1px solid rgba(255, 255, 255, 0.05);">
+                            <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;" title="Solar Panel">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="1.5" style="filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.4));">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                                    <line x1="12" y1="3" x2="12" y2="21" />
+                                    <line x1="3" y1="12" x2="21" y2="12" />
+                                    <line x1="3" y1="7" x2="21" y2="7" />
+                                    <line x1="3" y1="17" x2="21" y2="17" />
+                                </svg>
+                                <span style="font-size: 0.5rem; color: var(--text-secondary); text-transform: uppercase; font-weight:600;">Solar</span>
+                            </div>
+                            <div class="visual-connector" style="color: var(--accent-blue); font-size: 0.9rem; animation: pulse-glow 1s infinite;">⚡</div>
+                            <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;" title="Storage Battery">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="1.5" style="filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.4));">
+                                    <rect x="2" y="6" width="16" height="12" rx="2" />
+                                    <path d="M20 10v4" stroke-linecap="round" />
+                                    <rect x="5" y="9" width="3" height="6" rx="0.5" fill="#10b981" />
+                                    <rect x="9" y="9" width="3" height="6" rx="0.5" fill="#10b981" />
+                                    <rect x="13" y="9" width="3" height="6" rx="0.5" fill="#10b981" />
+                                </svg>
+                                <span style="font-size: 0.5rem; color: var(--text-secondary); text-transform: uppercase; font-weight:600;">Battery</span>
+                            </div>
+                        </div>
+                    `;
+
+                    let tempBatVal = (node.temp_bat !== undefined) ? node.temp_bat : ((node.adv !== undefined) ? node.adv : 25.0);
+                    extraInfoRows = `
+                        <div class="node-info-row">
+                            <span class="node-info-label">Battery Temp</span>
+                            <span class="node-info-val text-rose">${tempBatVal.toFixed(1)}°C</span>
+                        </div>
+                    `;
                 }
                 
                 html += `
@@ -1513,10 +1568,11 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
                         <div class="node-card-top">
                             <div class="node-title-row">
                                 <h3>Node #${node.id}</h3>
-                                <span class="node-type-badge ${node.type === 1 ? 'badge-agri' : 'badge-raw'}">${node.type === 1 ? 'AGRI' : 'RAW-ADC'}</span>
+                                <span class="node-type-badge ${badgeClass}">${typeBadge}</span>
                             </div>
                             ${renderSignalBars(node.rssi)}
                         </div>
+                        ${visualHtml}
                         <div class="node-info-row">
                             <span class="node-info-label">${s1Label}</span>
                             <span class="node-info-val text-amber">${s1Val}</span>
@@ -1529,6 +1585,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
                             <span class="node-info-label">Node Battery</span>
                             <span class="node-info-val">${node.vbat.toFixed(2)} V</span>
                         </div>
+                        ${extraInfoRows}
                         <div class="node-info-row">
                             <span class="node-info-label">Drift</span>
                             <span class="node-info-val text-rose">${node.drift} ms</span>
@@ -1769,10 +1826,14 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
                         nodesCache[nodeId] = { id: nodeId, valid: true, rssi:-90, snr: 6, drift:0, lastUpdate: Date.now() };
                     }
                     
-                    nodesCache[nodeId].type = data.type === "AGRI" ? 1 : 2;
+                    nodesCache[nodeId].type = data.type === "AGRI" ? 1 : (data.type === "POWER" ? 3 : 2);
                     if (data.type === "AGRI") {
                         nodesCache[nodeId].s1 = data.temp;
                         nodesCache[nodeId].s2 = data.hum;
+                    } else if (data.type === "POWER") {
+                        nodesCache[nodeId].s1 = data.energy;
+                        nodesCache[nodeId].s2 = data.power;
+                        nodesCache[nodeId].temp_bat = data.temp_bat;
                     } else {
                         nodesCache[nodeId].s1 = data.adc1;
                         nodesCache[nodeId].s2 = data.adc2;
@@ -1907,11 +1968,57 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
             initChart();
             if (window.location.protocol !== 'file:') {
                 document.getElementById('gateway-ip').value = window.location.host;
+            } else {
+                // Populate mock nodes for local filesystem preview/demo
+                nodesCache[1] = {
+                    id: 1,
+                    type: 1,
+                    s1: 26.5,
+                    s2: 60.2,
+                    vbat: 3.75,
+                    rssi: -65,
+                    snr: 9,
+                    drift: -5,
+                    lastUpdate: Date.now()
+                };
+                nodesCache[2] = {
+                    id: 2,
+                    type: 2,
+                    s1: 400.0,
+                    s2: 820.0,
+                    vbat: 3.82,
+                    rssi: -90,
+                    snr: 4,
+                    drift: 150,
+                    lastUpdate: Date.now()
+                };
+                nodesCache[3] = {
+                    id: 3,
+                    type: 3,
+                    s1: 450.5,
+                    s2: 120.2,
+                    vbat: 4.15,
+                    temp_bat: 28.5,
+                    rssi: -75,
+                    snr: 8,
+                    drift: 12,
+                    lastUpdate: Date.now()
+                };
+                
+                // Add some dummy history for Chart preview
+                const times = ["22:45:00", "22:46:00", "22:47:00", "22:48:00", "22:49:00"];
+                nodeHistory[1] = { times: times, temp: [25.0, 25.5, 26.0, 26.2, 26.5], hum: [58.0, 59.0, 59.5, 60.0, 60.2] };
+                nodeHistory[2] = { times: times, temp: [390, 395, 400, 398, 400], hum: [810, 815, 820, 818, 820] };
+                nodeHistory[3] = { times: times, temp: [445.0, 447.0, 449.0, 450.0, 450.5], hum: [115.0, 118.0, 120.0, 119.0, 120.2] };
+
+                rebuildNodesFromCache();
+                selectChartNode(3);
             }
         });
     </script>
 </body>
-</html>)rawliteral";
+</html>
+)rawliteral";
 
 void Init_WebServer() {
   server.on("/", HTTP_GET, []() {
@@ -1956,8 +2063,8 @@ void Init_WebServer() {
         }
         firstNode = false;
         
-        float s1 = loraNodes[i].type == 1 ? loraNodes[i].s1 / 100.0f : loraNodes[i].s1;
-        float s2 = loraNodes[i].type == 1 ? loraNodes[i].s2 / 100.0f : loraNodes[i].s2;
+        float s1 = (loraNodes[i].type == 1 || loraNodes[i].type == 3) ? loraNodes[i].s1 / 100.0f : loraNodes[i].s1;
+        float s2 = (loraNodes[i].type == 1 || loraNodes[i].type == 3) ? loraNodes[i].s2 / 100.0f : loraNodes[i].s2;
         
         snprintf(buf, sizeof(buf),
           "{\"id\":%u,\"type\":%u,\"s1\":%.2f,\"s2\":%.2f,\"vbat\":%.2f,\"seq\":%u,\"rssi\":%d,\"snr\":%d,\"drift\":%ld,\"adv\":%u,\"star\":%u,\"sf\":%u,\"nodes\":%u,\"last_seen\":%lu}",
