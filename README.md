@@ -1,5 +1,9 @@
 # ArduLoFi Board — The Ultimate LoRa, LoRaWAN & WiFi MQTT Development Platform
 
+<p align="center">
+  <img src="examples/ArduLoFi_Canopus/canopus_promo.png" alt="ArduLoFi Canopus Banner" width="100%">
+</p>
+
 **ArduLoFi** is an ultra-compact, dual-microcontroller development board designed for long-range communication and cloud IoT integration. Combining the long-range radio capabilities of the **RAK3172** module with the WiFi and Bluetooth power of the **ESP32-C3** co-processor, ArduLoFi acts as a bridge between sensor nodes, LoRaWAN gateways, and MQTT cloud brokers.
 
 Powered by the official **RUI3 (v4.2.4+)** framework on the RAK3172 side and standard ESP32 Arduino framework on the ESP32-C3 side, ArduLoFi is the perfect solution for smart agriculture, industrial automation, low-power remote monitoring, and telemetry nodes. It is highly suitable for building **IoT Gateways, Mesh Core nodes, Meshtastic networks, and LoRa APs (Access Points)**.
