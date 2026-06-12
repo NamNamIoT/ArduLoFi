@@ -17,16 +17,15 @@ Many maker-grade IoT installations fail in the field due to two major bottleneck
 
 ## 2. Gateway Hardware Architecture
 
-The Gateway splits responsibilities between a dual-core **ESP32-WROOM-32E** (handling Wi-Fi networking, WebSockets, REST HTTP server, and local sensors) and a **RAK3172 module** (acting as a dedicated LoRa RF frontend and time-slot controller).
+The Gateway splits responsibilities between a dual-core **ESP32-WROOM-32E** (handling Wi-Fi networking, WebSockets, REST HTTP server, and battery monitoring) and a **RAK3172 module** (acting as a dedicated LoRa RF frontend and time-slot controller).
 
 ```mermaid
 graph TD
     subgraph Canopus Gateway
         ESP32[ESP32 Main MCU] <-->|UART 115200bps| RAK_GW[RAK3172 LoRa Co-Processor]
         WiFi[WiFi 2.4GHz] <--> ESP32
-        LM234[LM234 Temp Sensor] -->|Analog Read GPIO4| ESP32
-        MCP[MCP2551 CAN Transceiver] <-->|CAN Controller| ESP32
-        PWR[Battery & Accu Volts] -->|Resistor Divider ADCs| ESP32
+        PWR[Battery Volts] -->|Resistor Divider ADC| ESP32
+        VEXT[Vext 3.3V Switch] -->|Power Enable GPIO15| Sensors[External Sensors]
     end
     RAK_GW <-->|LoRa 915MHz P2P TDMA| Node[RAK3172 Weather Node]
 ```
@@ -42,11 +41,9 @@ To offload RF timings and packet handling from the FreeRTOS network and web task
 * **ESP32 RX / TX**: GPIO16 and GPIO17 connected to RAK3172 UART interface.
 * **Co-Processor Duty**: It executes a microsecond-accurate state machine that transmits a synchronization beacon (`*SYNC_START`) and receives data packets from nodes in dedicated time slots.
 
-### 2.3. On-Board Sensors & Industrial Interfaces
-* **Local Temp Sensor**: An **LM234** current-source temperature sensor connected to an analog-read pin (GPIO4) and controlled/biased by GPIO5.
-* **Power Monitoring**: Built-in resistor divider networks scale down external Accumulator (up to 24V) and Backup Battery (up to 4.2V) voltages to fit the ESP32's 3.3V ADC range (read via GPIO36 and GPIO39).
-* **CAN-Bus Port**: Built-in **MCP2551** CAN transceiver enabled via GPIO15 (`ENABLE_VEXT`) for wired multi-node industrial communication.
-* **Cellular Prep**: SIM card power control switch (`ENABLE_VSIM_PIN`) connected to GPIO13.
+### 2.3. Power Monitoring & Switched Rails
+* **Battery Monitoring**: A built-in resistor divider network scales down the backup battery voltage (up to 4.2V) to fit the ESP32's 3.3V ADC range (read via GPIO39).
+* **Switched Vext Rail**: A 3.3V power rail enable switch (`ENABLE_VEXT`) mapped to GPIO15 to control power supply to external sensors, minimizing idle current consumption.
 
 ---
 
@@ -113,14 +110,11 @@ This closed-loop feedback loop keeps all nodes synchronized to within **±5ms** 
 | :--- | :--- | :--- | :--- |
 | **GPIO16** | `RX2` | Hardware Serial 2 RX | RAK3172 TX |
 | **GPIO17** | `TX2` | Hardware Serial 2 TX | RAK3172 RX |
-| **GPIO4** | `LM234_READ` | Analog read of temperature | LM234 Sensor Pin |
-| **GPIO5** | `LM234_BIAS` | Control current bias | LM234 Supply Pin |
-| **GPIO36**| `ACCU_READ` | Accumulator voltage read | Resistor Divider (24V Max) |
 | **GPIO39**| `BATT_READ` | Battery voltage read | Resistor Divider (4.2V Max) |
 | **GPIO12**| `LED_RUN` | Status indicator LED | Red Running LED |
 | **GPIO34**| `SETTING_BT`| Configure Mode Trigger | Physical Button to GND |
-| **GPIO15**| `ENABLE_VEXT`| 3.3V CAN/Aux Bus Enable | MCP2551 Transceiver Enable |
-| **GPIO13**| `ENABLE_VSIM`| Cellular Modem Power Switch | SIM Power MOS Gate |
+| **GPIO15**| `ENABLE_VEXT`| Switched 3.3V Bus Enable | Ext. Sensors VCC Control |
+| **GPIO13**| `ENABLE_VSIM`| Auxiliary Power Switch | Ext. Module Power Switch |
 
 ### 5.2. RAK3172 (STM32WLE5) Pin Connections
 
